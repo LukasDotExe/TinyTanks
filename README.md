@@ -1,2 +1,2 @@
 # TinyTanks
-A game about Tiny Tanks shooting each other.
+A game about Tiny Tanks shooting each other
