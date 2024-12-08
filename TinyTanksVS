@@ -1,0 +1,240 @@
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.util.ArrayList;
+import java.util.Timer;
+import java.util.TimerTask;
+
+public class TankGame extends JPanel implements ActionListener, KeyListener, MouseMotionListener {
+    Timer timer;
+    PlayerTank player;
+    EnemyTank enemy;
+    ArrayList<Bullet> bullets;
+    ArrayList<Wall> walls;
+
+    public TankGame() {
+        setPreferredSize(new Dimension(200, 360));
+        setBackground(Color.black);
+        setFocusable(true);
+
+        player = new PlayerTank(50, 180);
+        enemy = new EnemyTank(150, 180);
+        bullets = new ArrayList<>();
+        walls = new ArrayList<>();
+
+        // Adding walls
+        walls.add(new Wall(30, 150));
+        walls.add(new Wall(90, 180));
+        walls.add(new Wall(150, 150));
+
+        addKeyListener(this);
+        addMouseMotionListener(this);
+
+        // Shooting mechanism initialization
+        new ShootingMechanism(this);
+
+        timer = new Timer(50, this);
+        timer.start();
+    }
+
+    @Override
+    public void actionPerformed(ActionEvent e) {
+        player.move();
+        enemy.moveTowards(player);
+
+        for (Bullet bullet : bullets) {
+            bullet.move();
+        }
+
+        checkCollisions();
+        repaint();
+    }
+
+    private void checkCollisions() {
+        // Check for bullet collisions with walls, tanks and boundaries
+        // Implement your collision logic here
+    }
+
+    @Override
+    protected void paintComponent(Graphics g) {
+        super.paintComponent(g);
+        player.draw(g);
+        enemy.draw(g);
+
+        for (Wall wall : walls) {
+            wall.draw(g);
+        }
+
+        for (Bullet bullet : bullets) {
+            bullet.draw(g);
+        }
+    }
+
+    @Override
+    public void keyPressed(KeyEvent e) {
+        player.keyPressed(e);
+    }
+
+    @Override
+    public void keyReleased(KeyEvent e) {
+        player.keyReleased(e);
+    }
+
+    @Override
+    public void keyTyped(KeyEvent e) {}
+
+    @Override
+    public void mouseMoved(MouseEvent e) {
+        player.aimTurret(e.getX(), e.getY());
+    }
+
+    @Override
+    public void mouseDragged(MouseEvent e) {}
+
+    public static void main(String[] args) {
+        JFrame frame = new JFrame("Tank Game");
+        TankGame game = new TankGame();
+        frame.add(game);
+        frame.pack();
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setVisible(true);
+    }
+}
+
+class PlayerTank {
+    int x, y, lives;
+    int dx, dy;
+    int turretAngle;
+
+    public PlayerTank(int x, int y) {
+        this.x = x;
+        this.y = y;
+        this.lives = 3;
+    }
+
+    public void move() {
+        x += dx;
+        y += dy;
+    }
+
+    public void aimTurret(int mouseX, int mouseY) {
+        turretAngle = (int) Math.toDegrees(Math.atan2(mouseY - y, mouseX - x));
+    }
+
+    public void draw(Graphics g) {
+        g.setColor(Color.green);
+        g.fillRect(x - 10, y - 10, 20, 20); // Basic tank body
+        g.setColor(Color.blue);
+        g.drawLine(x, y, x + (int) (20 * Math.cos(Math.toRadians(turretAngle))), y + (int) (20 * Math.sin(Math.toRadians(turretAngle)))); // Tank turret
+    }
+
+    public void keyPressed(KeyEvent e) {
+        int key = e.getKeyCode();
+        if (key == KeyEvent.VK_W) {
+            dy = -2;
+        }
+        if (key == KeyEvent.VK_S) {
+            dy = 2;
+        }
+        if (key == KeyEvent.VK_A) {
+            dx = -2;
+        }
+        if (key == KeyEvent.VK_D) {
+            dx = 2;
+        }
+    }
+
+    public void keyReleased(KeyEvent e) {
+        int key = e.getKeyCode();
+        if (key == KeyEvent.VK_W || key == KeyEvent.VK_S) {
+            dy = 0;
+        }
+        if (key == KeyEvent.VK_A || key == KeyEvent.VK_D) {
+            dx = 0;
+        }
+    }
+}
+
+class EnemyTank {
+    int x, y, lives;
+    int targetX, targetY;
+
+    public EnemyTank(int x, int y) {
+        this.x = x;
+        this.y = y;
+        this.lives = 3;
+    }
+
+    public void moveTowards(PlayerTank player) {
+        targetX = player.x;
+        targetY = player.y;
+        if (x < targetX) x++;
+        if (x > targetX) x--;
+        if (y < targetY) y++;
+        if (y > targetY) y--;
+    }
+
+    public void draw(Graphics g) {
+        g.setColor(Color.red);
+        g.fillRect(x - 10, y - 10, 20, 20); // Basic tank body
+        g.setColor(Color.yellow);
+        g.drawLine(x, y, targetX, targetY); // Turret aiming at player
+    }
+}
+
+class Bullet {
+    int x, y, angle;
+    int speed = 5;
+
+    public Bullet(int x, int y, int angle) {
+        this.x = x;
+        this.y = y;
+        this.angle = angle;
+    }
+
+    public void move() {
+        x += speed * Math.cos(Math.toRadians(angle));
+        y += speed * Math.sin(Math.toRadians(angle));
+    }
+
+    public void draw(Graphics g) {
+        g.setColor(Color.white);
+        g.fillRect(x, y, 2, 2);
+    }
+}
+
+class Wall {
+    int x, y;
+
+    public Wall(int x, int y) {
+        this.x = x;
+        this.y = y;
+    }
+
+    public void draw(Graphics g) {
+        g.setColor(Color.gray);
+        g.fillRect(x - 10, y - 10, 20, 20);
+    }
+}
+
+class ShootingMechanism {
+    Timer shootingTimer;
+    TankGame game;
+
+    public ShootingMechanism(TankGame game) {
+        this.game = game;
+        shootingTimer = new Timer();
+        shootingTimer.schedule(new ShootTask(), 0, 500);
+    }
+
+    class ShootTask extends TimerTask {
+        @Override
+        public void run() {
+            // Player shoot
+            game.bullets.add(new Bullet(game.player.x, game.player.y, game.player.turretAngle));
+            // Enemy shoot towards player
+            int angleToPlayer = (int) Math.toDegrees(Math.atan2(game.player.y - game.enemy.y, game.player.x - game.enemy.x));
+            game.bullets.add(new Bullet(game.enemy.x, game.enemy.y, angleToPlayer));
+        }
+    }
+}
